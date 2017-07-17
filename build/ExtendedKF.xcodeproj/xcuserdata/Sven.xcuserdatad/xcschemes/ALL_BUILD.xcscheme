@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "92C9FF043D7E4A1DBCC4F1C5"
+               BlueprintIdentifier = "A5EF8CBF705445939F1F8E08"
                BuildableName = "ALL_BUILD"
                BlueprintName = "ALL_BUILD"
                ReferencedContainer = "container:build/ExtendedKF.xcodeproj">
@@ -45,7 +45,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "92C9FF043D7E4A1DBCC4F1C5"
+            BlueprintIdentifier = "A5EF8CBF705445939F1F8E08"
             BuildableName = "ALL_BUILD"
             BlueprintName = "ALL_BUILD"
             ReferencedContainer = "container:build/ExtendedKF.xcodeproj">
@@ -63,7 +63,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "92C9FF043D7E4A1DBCC4F1C5"
+            BlueprintIdentifier = "A5EF8CBF705445939F1F8E08"
             BuildableName = "ALL_BUILD"
             BlueprintName = "ALL_BUILD"
             ReferencedContainer = "container:build/ExtendedKF.xcodeproj">

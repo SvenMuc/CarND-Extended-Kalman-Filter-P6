@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "B04B2E215EEC435C9FF264A4"
+               BlueprintIdentifier = "067E62CF878A4F619A52D680"
                BuildableName = "ExtendedKF"
                BlueprintName = "ExtendedKF"
                ReferencedContainer = "container:build/ExtendedKF.xcodeproj">
@@ -32,7 +32,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "B04B2E215EEC435C9FF264A4"
+            BlueprintIdentifier = "067E62CF878A4F619A52D680"
             BuildableName = "ExtendedKF"
             BlueprintName = "ExtendedKF"
             ReferencedContainer = "container:build/ExtendedKF.xcodeproj">
@@ -55,7 +55,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "B04B2E215EEC435C9FF264A4"
+            BlueprintIdentifier = "067E62CF878A4F619A52D680"
             BuildableName = "ExtendedKF"
             BlueprintName = "ExtendedKF"
             ReferencedContainer = "container:build/ExtendedKF.xcodeproj">
@@ -63,7 +63,15 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "../../../data/sample-laser-radar-measurement-data-2.txt ../../../data/output.txt"
+            argument = "-o output.txt"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--laser"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--radar"
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
@@ -80,7 +88,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "B04B2E215EEC435C9FF264A4"
+            BlueprintIdentifier = "067E62CF878A4F619A52D680"
             BuildableName = "ExtendedKF"
             BlueprintName = "ExtendedKF"
             ReferencedContainer = "container:build/ExtendedKF.xcodeproj">
