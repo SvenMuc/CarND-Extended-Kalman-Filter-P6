@@ -68,7 +68,7 @@ Eigen::VectorXd KalmanFilter::h(const Eigen::VectorXd &x) {
   float phi = atan2(py, px);
   float rho_dot = (px*vx + py*vy) / rho;
   
-  std::cout << "rho: " << rho << "m  phi: " << phi << " rad (" << phi * 180 / 3.141 << "°) rho_dot: " << rho_dot << std::endl;
+  // std::cout << "rho: " << rho << "m  phi: " << phi << " rad (" << phi * 180 / 3.141 << "°) rho_dot: " << rho_dot << std::endl;
   
   VectorXd hx = VectorXd(3);
   hx << rho, phi, rho_dot;
