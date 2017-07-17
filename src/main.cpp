@@ -1,5 +1,6 @@
 #include <uWS/uWS.h>
 #include <iostream>
+#include <fstream>
 #include "json.hpp"
 #include <math.h>
 #include "FusionEKF.h"
@@ -26,11 +27,65 @@ std::string hasData(std::string s) {
   return "";
 }
 
-int main()
+/**
+ Prints the command line parameter usage.
+ 
+ @param name Program name.
+ */
+static void show_usage(std::string name)
 {
+  cerr << "Usage: " << name << " <option(s)> SOURCES"
+  << "Options:\n"
+  << "\t-h,--help\t\tShow this help message\n"
+  << "\t-0,--output OUTPUT\tSpecify the output file"
+  << endl;
+}
+
+/**
+ Main routine.
+ 
+ @param argc Number of arguments.
+ @param argv Arguments list.
+ @return tbd.
+ */
+int main(int argc, char** argv)
+{
+  // check arguments
+  if (argc > 3) {
+    show_usage(argv[0]);
+    return 1;
+  }
+  
+  string output;
+  ofstream output_file;
+  
+  for (int i = 1; i < argc; ++i) {
+    std::string arg = argv[i];
+    
+    if ((arg == "-h") || (arg == "--help")) {
+      show_usage(argv[0]);
+      return 0;
+    } else if ((arg == "-o") || (arg == "--output")) {
+      if (i + 1 < argc) {
+        output = argv[++i];
+        output_file.open(output, ios_base::out);
+        
+        if (!output_file.is_open()) {
+          cout << "Unable to create file " << output << "." << endl;
+          return 1;
+        } else {
+          cout << "Created output file: " << output << endl;
+        }
+      } else {
+        cerr << "--output option requires one argument." << endl;
+        return 1;
+      }
+    }
+  }
+  
   uWS::Hub h;
   
-  // Create a Kalman Filter instance
+  // create a Kalman Filter instance
   FusionEKF fusionEKF;
   
   // used to compute the RMSE later
@@ -38,7 +93,7 @@ int main()
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
   
-  h.onMessage([&fusionEKF,&tools,&estimations,&ground_truth](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&fusionEKF, &tools, &estimations, &ground_truth, &output_file](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -65,30 +120,36 @@ int main()
           // reads first element from the current line
           string sensor_type;
           iss >> sensor_type;
+          float meas_px = 0.0;
+          float meas_py = 0.0;
           
           if (sensor_type.compare("L") == 0) {
             meas_package.sensor_type_ = MeasurementPackage::LASER;
-          		meas_package.raw_measurements_ = VectorXd(2);
-          		float px;
+            meas_package.raw_measurements_ = VectorXd(2);
+            float px;
             float py;
-          		iss >> px;
-          		iss >> py;
-          		meas_package.raw_measurements_ << px, py;
-          		iss >> timestamp;
-          		meas_package.timestamp_ = timestamp;
+            iss >> px;
+            iss >> py;
+            meas_px = px;
+            meas_py = py;
+            meas_package.raw_measurements_ << px, py;
+            iss >> timestamp;
+            meas_package.timestamp_ = timestamp;
           } else if (sensor_type.compare("R") == 0) {
             
             meas_package.sensor_type_ = MeasurementPackage::RADAR;
-          		meas_package.raw_measurements_ = VectorXd(3);
-          		float ro;
+            meas_package.raw_measurements_ = VectorXd(3);
+          	float ro;
             float theta;
             float ro_dot;
-          		iss >> ro;
-          		iss >> theta;
-          		iss >> ro_dot;
-          		meas_package.raw_measurements_ << ro,theta, ro_dot;
-          		iss >> timestamp;
-          		meas_package.timestamp_ = timestamp;
+          	iss >> ro;
+          	iss >> theta;
+          	iss >> ro_dot;
+            meas_px = ro * cos(theta);
+            meas_py = ro * sin(theta);
+            meas_package.raw_measurements_ << ro,theta, ro_dot;
+          	iss >> timestamp;
+          	meas_package.timestamp_ = timestamp;
           }
           float x_gt;
           float y_gt;
@@ -105,11 +166,10 @@ int main()
           gt_values(3) = vy_gt;
           ground_truth.push_back(gt_values);
           
-          //Call ProcessMeasurment(meas_package) for Kalman filter
+          // call ProcessMeasurment(meas_package) for Kalman filter
           fusionEKF.ProcessMeasurement(meas_package);
           
-          //Push the current estimated x,y positon from the Kalman filter's state vector
-          
+          // push the current estimated x,y positon from the Kalman filter's state vector
           VectorXd estimate(4);
           
           double p_x = fusionEKF.ekf_.x_(0);
@@ -126,6 +186,14 @@ int main()
           
           VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
           
+          // write EKF estimates and ground truth to output file:
+          // File format: est_px est_py est_vx est_vy meas_px meas_py gt_px gt_py gt_vx gt_vy
+          if (output_file.is_open()) {
+            output_file << estimate(0) << " " << estimate(1) << " " << estimate(2) << " " << estimate(3) << " ";
+            output_file << meas_px << " " << meas_py << " ";
+            output_file << x_gt << " " << y_gt << " " << vx_gt << " " << vy_gt << "\n";
+          }
+          
           json msgJson;
           msgJson["estimate_x"] = p_x;
           msgJson["estimate_y"] = p_y;
@@ -139,12 +207,10 @@ int main()
           
         }
       } else {
-        
         std::string msg = "42[\"manual\",{}]";
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       }
     }
-    
   });
   
   // We don't need this since we're not using HTTP but if it's removed the program
@@ -166,7 +232,12 @@ int main()
     std::cout << "Connected!!!" << std::endl;
   });
   
-  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, char *message, size_t length) {
+  h.onDisconnection([&h, &output_file](uWS::WebSocket<uWS::SERVER> ws, int code, char *message, size_t length) {
+    // close output file
+    if (output_file.is_open()) {
+      output_file.close();
+    }
+    
     ws.close();
     std::cout << "Disconnected" << std::endl;
   });
