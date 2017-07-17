@@ -37,9 +37,25 @@ static void show_usage(std::string name)
   cerr << "Usage: " << name << " <option(s)> SOURCES"
   << "Options:\n"
   << "\t-h,--help\t\tShow this help message\n"
-  << "\t-0,--output OUTPUT\tSpecify the output file"
+  << "\t-o,--output OUTPUT\tSpecify the output file\n"
+  << "\t-l,--laser\tUse laser data only\n"
+  << "\t-r,--radar\tUse radar data only"
   << endl;
 }
+
+/**
+ * Fusion mode
+ *
+ * - LASER_ONLY   Uses LASER data only.
+ * - RADAR_ONLY   Uses RADAR data only.
+ * - FUSION       Fuses LASER and RADAR data.
+ */
+enum FusionMode{
+  LASER_ONLY,
+  RADAR_ONLY,
+  FUSION
+};
+
 
 /**
  Main routine.
@@ -51,13 +67,14 @@ static void show_usage(std::string name)
 int main(int argc, char** argv)
 {
   // check arguments
-  if (argc > 3) {
+  if (argc > 4) {
     show_usage(argv[0]);
     return 1;
   }
   
   string output;
   ofstream output_file;
+  FusionMode fusion_mode = FUSION;
   
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -66,6 +83,7 @@ int main(int argc, char** argv)
       show_usage(argv[0]);
       return 0;
     } else if ((arg == "-o") || (arg == "--output")) {
+      // setup output file
       if (i + 1 < argc) {
         output = argv[++i];
         output_file.open(output, ios_base::out);
@@ -80,6 +98,25 @@ int main(int argc, char** argv)
         cerr << "--output option requires one argument." << endl;
         return 1;
       }
+    } else if ((arg == "-l") || (arg == "--laser")) {
+      // setup LASER only mode
+      if (fusion_mode == RADAR_ONLY) {
+        cerr << "LASER only mode cannot be combined with RADAR only mode.";
+        return 1;
+      }
+      
+      fusion_mode = LASER_ONLY;
+      cout << "Fusion Mode: LASER only" << endl;
+
+    } else if ((arg == "-r") || (arg == "--radar")) {
+      // setup radar only mode
+      if (fusion_mode == LASER_ONLY) {
+        cerr << "RADAR only mode cannot be combined with LASER only mode.";
+        return 1;
+      }
+      
+      fusion_mode = RADAR_ONLY;
+      cout << "Fusion Mode: RADAR only" << endl;
     }
   }
   
@@ -93,7 +130,7 @@ int main(int argc, char** argv)
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
   
-  h.onMessage([&fusionEKF, &tools, &estimations, &ground_truth, &output_file](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&fusionEKF, &tools, &estimations, &ground_truth, &output_file, &fusion_mode](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -123,7 +160,16 @@ int main(int argc, char** argv)
           float meas_px = 0.0;
           float meas_py = 0.0;
           
+          if ((sensor_type.compare("L") == 0 && fusion_mode == RADAR_ONLY) ||
+              (sensor_type.compare("R") == 0 && fusion_mode == LASER_ONLY)) {
+            cout << "Skipped measurement (" << sensor_type << ")." << endl;
+            std::string msg = "42[\"manual\",{}]";
+            ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+            return;
+          }
+          
           if (sensor_type.compare("L") == 0) {
+            // prepare LASER measurement data
             meas_package.sensor_type_ = MeasurementPackage::LASER;
             meas_package.raw_measurements_ = VectorXd(2);
             float px;
@@ -136,7 +182,7 @@ int main(int argc, char** argv)
             iss >> timestamp;
             meas_package.timestamp_ = timestamp;
           } else if (sensor_type.compare("R") == 0) {
-            
+            // prepare RADAR measurement data
             meas_package.sensor_type_ = MeasurementPackage::RADAR;
             meas_package.raw_measurements_ = VectorXd(3);
           	float ro;
@@ -151,6 +197,7 @@ int main(int argc, char** argv)
           	iss >> timestamp;
           	meas_package.timestamp_ = timestamp;
           }
+          
           float x_gt;
           float y_gt;
           float vx_gt;
@@ -187,11 +234,12 @@ int main(int argc, char** argv)
           VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
           
           // write EKF estimates and ground truth to output file:
-          // File format: est_px est_py est_vx est_vy meas_px meas_py gt_px gt_py gt_vx gt_vy
+          // File format: est_px est_py est_vx est_vy meas_px meas_py gt_px gt_py gt_vx gt_vy rmse_x rmse_x rmse_vx rmse_vy
           if (output_file.is_open()) {
             output_file << estimate(0) << " " << estimate(1) << " " << estimate(2) << " " << estimate(3) << " ";
             output_file << meas_px << " " << meas_py << " ";
-            output_file << x_gt << " " << y_gt << " " << vx_gt << " " << vy_gt << "\n";
+            output_file << x_gt << " " << y_gt << " " << vx_gt << " " << vy_gt << " ";
+            output_file << RMSE(0) << " " << RMSE(1) << " " << RMSE(2) << " " << RMSE(3) << "\n";
           }
           
           json msgJson;
@@ -204,7 +252,6 @@ int main(int argc, char** argv)
           auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-          
         }
       } else {
         std::string msg = "42[\"manual\",{}]";
@@ -232,7 +279,7 @@ int main(int argc, char** argv)
     std::cout << "Connected!!!" << std::endl;
   });
   
-  h.onDisconnection([&h, &output_file](uWS::WebSocket<uWS::SERVER> ws, int code, char *message, size_t length) {
+  h.onDisconnection([&h, &fusionEKF, &output_file](uWS::WebSocket<uWS::SERVER> ws, int code, char *message, size_t length) {
     // close output file
     if (output_file.is_open()) {
       output_file.close();
